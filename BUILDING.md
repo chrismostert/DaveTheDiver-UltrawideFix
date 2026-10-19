@@ -52,6 +52,11 @@ It turns on verbose logging and watches `<game>/BepInEx/cmd.txt`. Write a comman
 | `tsl` / `tsl off` | Show / hide the Time Skip loading scene for the current area (visual only, doesn't skip time) |
 | `show <0\|1> <path>` | `SetActive` on an object, also inactive ones below an active root |
 | `cloudls` / `cloudput <folder>` | List the game's Steam Cloud save files / overwrite them with a folder's files (restoring a save backup; the game re-downloads its cloud saves on every start, so copying local files isn't enough) |
+| `edges [minPx]` | World renderers that reach into the side areas outside the 16:9 strip, with their screen extent |
+| `blur` | How the game's blur is wired: `KawaseBlur` renderer features, blur cameras, blur back panels |
+| `blurtest <on\|off> [mask <ramp>\|nomask] [passes <n>] [down <n>]` | Toggle the blur camera of the active blur panel, optionally only outside the 16:9 strip (generated `_MaskTex`). Changes shared game materials until restart |
+| `texdump <name>` | Save a loaded texture as `BepInEx/<name>.png` |
+| `findperf [name]` | Time of one `GameObject.Find` and the number of active objects |
 
 Don't ship a diagnostics build.
 

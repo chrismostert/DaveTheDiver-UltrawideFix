@@ -257,6 +257,129 @@ public class DiagBehaviour : MonoBehaviour
                 Plugin.L.LogInfo("CAMS\n" + sb);
                 break;
             }
+            case "edges":
+            {
+                // edges [minPx] : world renderers that reach into the side areas outside the 16:9 strip,
+                // with their screen-space extent (WorldToScreenPoint is not remapped by WorldUiFix)
+                var cam = Camera.main;
+                if (cam == null) { Plugin.L.LogInfo("no main camera"); break; }
+                float minPx = a.Length > 1 ? float.Parse(a[1]) : 40f;
+                float w = Screen.width, h = Screen.height, strip = h * 16f / 9f;
+                float l = (w - strip) / 2, r = w - l;
+                var sb = new StringBuilder($"cam {Path2(cam.transform)} ortho={cam.orthographic} size={cam.orthographicSize:F2} pos={cam.transform.position} strip {l:F0}..{r:F0}\n");
+                foreach (var rend in UnityEngine.Object.FindObjectsOfType<Renderer>())
+                {
+                    if (!rend.isVisible || !rend.enabled) continue;
+                    var b = rend.bounds;
+                    var p0 = cam.WorldToScreenPoint(b.min);
+                    var p1 = cam.WorldToScreenPoint(b.max);
+                    float x0 = Mathf.Min(p0.x, p1.x), x1 = Mathf.Max(p0.x, p1.x), y0 = Mathf.Min(p0.y, p1.y), y1 = Mathf.Max(p0.y, p1.y);
+                    if (x1 - x0 < minPx && y1 - y0 < minPx) continue;
+                    if (x0 > l && x1 < r) continue;
+                    if (x1 < 0 || x0 > w || y1 < 0 || y0 > h) continue;
+                    string flags = (x0 > 0 && x0 < l ? "Ledge " : "") + (x1 < w && x1 > r ? "Redge " : "");
+                    var sr = rend.TryCast<SpriteRenderer>();
+                    string extra = sr != null ? $"sprite={(sr.sprite != null ? sr.sprite.name : "-")} draw={sr.drawMode} col={sr.color}" : rend.GetIl2CppType().Name;
+                    var comps = string.Join(",", rend.GetComponents<Component>().Select(c => c.GetIl2CppType().Name).Where(n => n != "Transform"));
+                    sb.AppendLine($"{flags}x={x0:F0}..{x1:F0} y={y0:F0}..{y1:F0} z={b.center.z:F1} L={rend.sortingLayerName}/{rend.sortingOrder} {Path2(rend.transform)} {extra} [{comps}]");
+                }
+                Plugin.L.LogInfo("EDGES\n" + sb);
+                break;
+            }
+            case "blur":
+            {
+                // blur : how the game's blur is wired (KawaseBlur features, RendererFeatureCameras, blur back panels)
+                var sb = new StringBuilder();
+                foreach (var kb in Resources.FindObjectsOfTypeAll<KawaseBlur>())
+                {
+                    var s = kb.settings;
+                    sb.AppendLine($"KawaseBlur '{kb.name}' active={kb.isActive} en={s.IsEnabled} evt={s.renderPassEvent} passes={s.blurPasses} down={s.downsample} toFB={s.copyToFramebuffer} target='{s.targetName}' mat={MatInfo(s.blurMaterial)}");
+                }
+                foreach (var rfc in UnityEngine.Object.FindObjectsOfType<RendererFeatureCamera>(true))
+                {
+                    var c = rfc.Cam;
+                    sb.AppendLine($"RFC {Path2(rfc.transform)} act={rfc.isActiveAndEnabled} blurOn={rfc.IsBlurEnabled} cam={(c != null ? $"{Path2(c.transform)} en={c.isActiveAndEnabled} depth={c.depth} rect={R(c.rect)} tex={(c.targetTexture != null ? c.targetTexture.name : "-")} mask={c.cullingMask:X}" : "-")} blurF={(rfc.BlurFeature != null ? rfc.BlurFeature.name : "-")} photoF={(rfc.BlurPhotoFeature != null ? rfc.BlurPhotoFeature.name : "-")}");
+                }
+                foreach (var p in UnityEngine.Object.FindObjectsOfType<LobbyblurBackPanel>(true))
+                {
+                    var img = p.BackImage;
+                    sb.AppendLine($"BlurPanel {Path2(p.transform)} act={p.gameObject.activeInHierarchy} blurred={p.IsBlurred} camRef={p.hasblurCamRef} img={(img != null ? $"en={img.enabled} sprite={(img.sprite != null ? img.sprite.name : "-")} col={img.color} mat={MatInfo(img.material)}" : "-")}");
+                }
+                var cm = Singleton<CameraManager>._instance;
+                if (cm != null) sb.AppendLine($"CameraManager blurCam={(cm.blurCamera != null ? Path2(cm.blurCamera.transform) : "-")} rfc={(cm.RendererFeatureCam != null ? Path2(cm.RendererFeatureCam.transform) : "-")}");
+                Plugin.L.LogInfo("BLUR\n" + sb);
+                break;
+            }
+            case "texdump":
+            {
+                // texdump <textureName> : saves the texture (GPU copy) as BepInEx/<name>.png
+                var tex = Resources.FindObjectsOfTypeAll<Texture>().FirstOrDefault(t => t.name == a[1]);
+                if (tex == null) { Plugin.L.LogInfo("no texture " + a[1]); break; }
+                var rt = RenderTexture.GetTemporary(tex.width, tex.height, 0, RenderTextureFormat.ARGB32);
+                Graphics.Blit(tex, rt);
+                var prev = RenderTexture.active; RenderTexture.active = rt;
+                var t2 = new Texture2D(tex.width, tex.height, TextureFormat.RGBA32, false);
+                t2.ReadPixels(new UnityEngine.Rect(0, 0, tex.width, tex.height), 0, 0); t2.Apply();
+                RenderTexture.active = prev; RenderTexture.ReleaseTemporary(rt);
+                var file = Path.Combine(Paths.BepInExRootPath, a[1] + ".png");
+                File.WriteAllBytes(file, ImageConversion.EncodeToPNG(t2));
+                Plugin.L.LogInfo($"wrote {file} ({tex.width}x{tex.height})");
+                break;
+            }
+            case "blurtest":
+            {
+                // blurtest <on|off> [mask <edgeFrac>|nomask] [passes <n>] : toggles the blur camera of the first
+                // active blur back panel, optionally with a generated side mask (white outside the 16:9 strip,
+                // ramping over edgeFrac of the strip width) on its KawaseBlur material
+                var rfc = UnityEngine.Object.FindObjectsOfType<RendererFeatureCamera>().FirstOrDefault(r => r.isActiveAndEnabled);
+                if (rfc == null) { Plugin.L.LogInfo("no active RendererFeatureCamera"); break; }
+                var mat = rfc.BlurFeature?.settings.blurMaterial;
+                for (int i = 2; i < a.Length; i++)
+                {
+                    if (a[i] == "mask" && mat != null)
+                    {
+                        float ramp = float.Parse(a[++i], System.Globalization.CultureInfo.InvariantCulture);
+                        const int N = 1024;
+                        var m = new Texture2D(N, 4, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, name = "UltrawideSideMask" };
+                        float strip = Screen.height * 16f / 9f / Screen.width, l = (1 - strip) / 2;
+                        for (int x = 0; x < N; x++)
+                        {
+                            float u = (x + 0.5f) / N;
+                            float d = Mathf.Max(l - u, u - (1 - l)); // >0 outside the strip
+                            float v = Mathf.SmoothStep(0, 1, Mathf.Clamp01((d + ramp * strip) / (ramp * strip)));
+                            for (int y = 0; y < 4; y++) m.SetPixel(x, y, new Color(v, v, v, v));
+                        }
+                        m.Apply();
+                        mat.SetTexture("_MaskTex", m);
+                    }
+                    else if (a[i] == "nomask" && mat != null) mat.SetTexture("_MaskTex", null);
+                    else if (a[i] == "passes" || a[i] == "down")
+                    {
+                        // applies to every KawaseBlur instance (rfc.BlurFeature may not be the one that renders)
+                        int v = int.Parse(a[++i]);
+                        foreach (var kb in Resources.FindObjectsOfTypeAll<KawaseBlur>())
+                        {
+                            if (a[i - 1] == "passes") { kb.settings.blurPasses = v; kb.UpdatePasses(v); }
+                            else { kb.settings.downsample = v; kb.Create(); }
+                        }
+                    }
+                }
+                if (a[1] == "on") rfc.EnableBlur(false); else rfc.DisableBlur(false);
+                Plugin.L.LogInfo($"blurtest {Path2(rfc.transform)} on={rfc.IsBlurEnabled} mat={MatInfo(mat)}");
+                break;
+            }
+            case "findperf":
+            {
+                // findperf [name] : cost of one GameObject.Find (what SushiBarScenery does every 0.5 s while not found)
+                var name = a.Length > 1 ? a[1] : "Lobby_Env_SushiBar";
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                GameObject go = null;
+                for (int i = 0; i < 100; i++) go = GameObject.Find(name);
+                sw.Stop();
+                int count = UnityEngine.Object.FindObjectsOfType<Transform>().Length;
+                Plugin.L.LogInfo($"findperf '{name}' found={(go != null ? Path2(go.transform) : "-")} {sw.Elapsed.TotalMilliseconds * 10:F1} us per call, {count} active transforms");
+                break;
+            }
             case "tree":
             {
                 // tree <rootName> [maxDepth]
@@ -304,6 +427,23 @@ public class DiagBehaviour : MonoBehaviour
         for (int i = 0; i < t.childCount; i++) Tree(t.GetChild(i), depth + 1, max, sb);
     }
 
+
+    static string MatInfo(Material m)
+    {
+        if (m == null) return "-";
+        var sh = m.shader;
+        var sb = new StringBuilder($"{m.name} shader={(sh != null ? sh.name : "-")}");
+        if (sh != null)
+            for (int i = 0; i < sh.GetPropertyCount(); i++)
+            {
+                var n = sh.GetPropertyName(i);
+                var t = sh.GetPropertyType(i);
+                sb.Append($" {n}:{t}");
+                if (t == UnityEngine.Rendering.ShaderPropertyType.Texture) { var tx = m.GetTexture(n); sb.Append($"={(tx != null ? tx.name + " " + tx.width + "x" + tx.height : "-")}"); }
+                else if (t is UnityEngine.Rendering.ShaderPropertyType.Float or UnityEngine.Rendering.ShaderPropertyType.Range) sb.Append($"={m.GetFloat(n):F2}");
+            }
+        return sb.ToString();
+    }
 
     static string R(UnityEngine.Rect r) => $"({r.x:F3},{r.y:F3},{r.width:F3},{r.height:F3})";
 

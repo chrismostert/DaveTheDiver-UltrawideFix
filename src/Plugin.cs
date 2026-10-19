@@ -80,6 +80,7 @@ public class UltrawideBehaviour : MonoBehaviour
             OverlayExtender.Update(); // also turns its masks off when disabled / not ultrawide
             WorldUiFix.Update();
             PixelCutscenes.Update();
+            SushiBarScenery.Update();
         }
         catch (Exception e) { Plugin.L.LogError(e); enabled = false; }
     }
