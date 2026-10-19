@@ -49,6 +49,8 @@ It turns on verbose logging and watches `<game>/BepInEx/cmd.txt`. Write a comman
 | `wtv` | Number of `WorldToViewportPoint` calls the hook has seen |
 | `bytes <rva> ...` | First bytes of `GameAssembly.dll` functions in memory (a hooked function starts with `FF-25`) |
 | `res <w> <h> <mode>` | `Screen.SetResolution` |
+| `tsl` / `tsl off` | Show / hide the Time Skip loading scene for the current area (visual only, doesn't skip time) |
+| `show <0\|1> <path>` | `SetActive` on an object, also inactive ones below an active root |
 | `cloudls` / `cloudput <folder>` | List the game's Steam Cloud save files / overwrite them with a folder's files (restoring a save backup; the game re-downloads its cloud saves on every start, so copying local files isn't enough) |
 
 Don't ship a diagnostics build.

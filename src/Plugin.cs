@@ -20,6 +20,7 @@ public class Plugin : BasePlugin
     internal static ConfigEntry<bool> WidenOverlays;
     internal static ConfigEntry<bool> ClipUI;
     internal static ConfigEntry<bool> FixWorldUi;
+    internal static ConfigEntry<bool> ScaleCutscenes;
     internal static ConfigEntry<string> CoverImages;
     internal static bool DebugLog;
 
@@ -35,6 +36,9 @@ public class Plugin : BasePlugin
         FixWorldUi = Config.Bind("General", "FixWorldUI", true,
             "Keep UI that follows things in the world (sushi bar order bubbles, speech bubbles, damage numbers, prompts) " +
             "lined up with its target. Without this it drifts toward the center of the screen.");
+        ScaleCutscenes = Config.Bind("General", "ScaleCutscenes", true,
+            "Show the small pixel-art scenes (e.g. after a Time Skip) as large as the screen height allows " +
+            "instead of at their original 2/3 size.");
         CoverImages = Config.Bind("General", "CoverImages", "Title,DummySushiBar",
             "Comma-separated names of full-screen background images that are scaled up to fill the screen width " +
             "(cropping a little at the top and bottom) instead of showing bars at the sides.");
@@ -75,6 +79,7 @@ public class UltrawideBehaviour : MonoBehaviour
             if (Plugin.Enabled.Value) Apply();
             OverlayExtender.Update(); // also turns its masks off when disabled / not ultrawide
             WorldUiFix.Update();
+            PixelCutscenes.Update();
         }
         catch (Exception e) { Plugin.L.LogError(e); enabled = false; }
     }

@@ -47,6 +47,8 @@ public static class OverlayExtender
         public Image Left, Right;
         public RectTransform LeftRt, RightRt;
         public float Side = -1f, Inset = -1f;
+        public bool Covering, CoverOrigMaskable;
+        public Vector3 CoverOrigScale;
     }
 
     /// <summary>A soft vignette that is stretched (not extended) to the full screen width.</summary>
@@ -264,13 +266,21 @@ public static class OverlayExtender
 
         // Registers the panel (and its clip mask) even if this image isn't an overlay.
         var panel = GetPanel(img.GetComponentInParent<AspectRatioFitter>(true));
-        if (panel == null || !Widen) return true;
+        if (panel == null) return true;
         if (!panel.FullScreen)
         {
             // The panel may not be laid out yet; look again for a few frames.
             if (fromEnable) Pending.Add((img, Time.frameCount, RecheckFrames));
             return false;
         }
+
+        if (Plugin.ScaleCutscenes.Value && PixelCutscenes.IsFrame(img))
+        {
+            if (PixelCutscenes.Consider(img, panel.Panel)) return true;
+            if (firstLook) Pending.Add((img, Time.frameCount, RecheckFramesLikely));
+            return false;
+        }
+        if (!Widen) return true;
 
         // Cheap rejections first.
         var sprite = img.sprite;
@@ -379,6 +389,14 @@ public static class OverlayExtender
     }
 
     /// <summary>Local size suggests a full-width overlay, even if a transform animation is running.</summary>
+    /// <summary>A real picture, as opposed to no sprite or a tiny solid "fill" sprite.</summary>
+    static bool IsArtwork(Sprite sprite)
+    {
+        if (sprite == null) return false;
+        var r = sprite.rect;
+        return r.width > 32f || r.height > 32f;
+    }
+
     static bool LooksLikeOverlay(RectTransform rt, RectTransform panel)
     {
         var r = rt.rect;
@@ -475,6 +493,32 @@ public static class OverlayExtender
     static void Sync(Entry e)
     {
         var src = e.Src;
+
+        // Some overlays get a real picture at runtime (e.g. the loading screen shows a blurred picture of
+        // the area). Plain-color strips next to it look wrong, so cover the screen with the picture
+        // instead, like the CoverImages backgrounds.
+        bool art = IsArtwork(src.sprite) && src.rectTransform.childCount == 2; // only our strips as children
+        if (art != e.Covering)
+        {
+            var rt = src.rectTransform;
+            if (art) { e.CoverOrigScale = rt.localScale; e.CoverOrigMaskable = src.maskable; e.Covering = true; }
+            else { rt.localScale = e.CoverOrigScale; e.Covering = false; }
+            // Not clipped by the panel's RectMask2D while it covers the screen.
+            src.maskable = art ? false : e.CoverOrigMaskable;
+            src.RecalculateClipping();
+            e.Left.gameObject.SetActive(!art);
+            e.Right.gameObject.SetActive(!art);
+        }
+        if (e.Covering)
+        {
+            var p = e.Panel;
+            float rootW = p.Root.rect.width / Mathf.Max(p.Panel.localScale.x, 1e-4f);
+            float factor = Mathf.Max(1f, rootW / Mathf.Max(p.Panel.rect.width, 1f));
+            var want = e.CoverOrigScale * factor;
+            if (src.rectTransform.localScale != want) src.rectTransform.localScale = want;
+            return;
+        }
+
         var c = src.color;
         bool en = src.enabled;
         float a = src.canvasRenderer.GetAlpha();

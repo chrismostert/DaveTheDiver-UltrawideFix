@@ -134,7 +134,7 @@ public class DiagBehaviour : MonoBehaviour
                     if (!RectTransformUtility.RectangleContainsScreenPoint(g.rectTransform, p, cam)) continue;
                     var rt = g.rectTransform;
                     var img = g.TryCast<Image>();
-                    sb.AppendLine($"{Path2(g.transform)} {g.GetIl2CppType().Name} col={g.color} sprite={(img != null && img.sprite != null ? img.sprite.name : "-")} rect={rt.rect.width:F0}x{rt.rect.height:F0} amin={rt.anchorMin} amax={rt.anchorMax} pos={rt.anchoredPosition} pivot={rt.pivot}");
+                    sb.AppendLine($"{Path2(g.transform)} {g.GetIl2CppType().Name} col={g.color} sprite={(img != null && img.sprite != null ? img.sprite.name : "-")} effA={g.color.a * g.canvasRenderer.GetInheritedAlpha():F2} canvas={g.canvas.name}:{g.canvas.sortingOrder}");
                 }
                 Plugin.L.LogInfo("AT\n" + sb);
                 break;
@@ -179,6 +179,37 @@ public class DiagBehaviour : MonoBehaviour
                     bool ok = Steamworks.SteamRemoteStorage.FileWrite(cloudName, bytes, bytes.Length);
                     Plugin.L.LogInfo($"  {cloudName} <- {name} ({bytes.Length} bytes): {ok}");
                 }
+                break;
+            }
+            case "show":
+            {
+                // show <0|1> <root/child/path> : SetActive, also for inactive objects below an active root
+                var path = string.Join(" ", a, 2, a.Length - 2).Replace('|', ' ');
+                var t = FindAny(path);
+                if (t == null) { Plugin.L.LogInfo("not found: " + path); break; }
+                t.gameObject.SetActive(a[1] == "1");
+                Plugin.L.LogInfo($"{path} active={t.gameObject.activeInHierarchy}");
+                break;
+            }
+            case "tsl":
+            {
+                // tsl : shows the Time Skip loading screen (visual only, does not skip time); tsl off hides it
+                var loader = UnityEngine.Object.FindObjectsOfType<TimeSkipLoader>(true).FirstOrDefault();
+                if (loader == null) { Plugin.L.LogInfo("no TimeSkipLoader"); break; }
+                var fade = loader.transform.parent;
+                if (a.Length > 1 && a[1] == "off")
+                {
+                    loader.Close();
+                    loader.gameObject.SetActive(false);
+                    fade.gameObject.SetActive(false);
+                    break;
+                }
+                fade.gameObject.SetActive(true);
+                var cg = fade.GetComponent<CanvasGroup>();
+                if (cg != null) cg.alpha = 1f;
+                loader.gameObject.SetActive(true);
+                loader.StartCoroutine(loader.DoDaySkipLoading(default));
+                Plugin.L.LogInfo("time skip loader started");
                 break;
             }
             case "wtv":
@@ -242,6 +273,17 @@ public class DiagBehaviour : MonoBehaviour
                 break;
             }
         }
+    }
+
+    /// <summary>Finds "root/child/..." where children may be inactive (GameObject.Find only sees active ones).</summary>
+    static Transform FindAny(string path)
+    {
+        var go = GameObject.Find(path);
+        if (go != null) return go.transform;
+        int slash = path.IndexOf('/');
+        var root = GameObject.Find(slash < 0 ? path : path.Substring(0, slash));
+        if (root == null) return null;
+        return slash < 0 ? root.transform : root.transform.Find(path.Substring(slash + 1));
     }
 
     static void Tree(Transform t, int depth, int max, StringBuilder sb)

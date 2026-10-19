@@ -5,6 +5,7 @@ A [BepInEx](https://github.com/BepInEx/BepInEx) plugin that lets Dave the Diver 
 - The game world (diving, boat, sushi bar, cutscenes, title screen) fills the whole screen.
 - HUD and menus stay in a centered 16:9 area, the way the game was designed.
 - Screen fades, dimmed popup backgrounds, cutscene bars and vignettes are extended to the full width.
+- The small pixel-art scenes (e.g. after a Time Skip) are shown as large as the screen height allows, and loading-screen backgrounds fill the width.
 - UI that follows things in the world (sushi bar order bubbles, speech bubbles, damage numbers, QTE markers) stays lined up with its target instead of drifting toward the center.
 - At 16:9 or narrower the game behaves exactly as without the fix.
 
@@ -34,13 +35,15 @@ After the first launch, edit `BepInEx/config/dtd.ultrawide.cfg`:
 | `WidenOverlays` | `true` | Extend fades and popup backgrounds to the full width. |
 | `ClipUIToCenter` | `true` | Hide UI the game keeps just outside the 16:9 area (e.g. slide-in tabs). |
 | `FixWorldUI` | `true` | Keep world-following UI (order bubbles, speech bubbles, damage numbers) on its target. |
+| `ScaleCutscenes` | `true` | Show the small pixel-art scenes (e.g. after a Time Skip) at full screen height instead of 2/3 size. |
 | `CoverImages` | `Title,DummySushiBar` | Full-screen background images that are zoomed to fill the width. |
 | `VerboseLogging` | `false` | Log every change the fix makes to `BepInEx/LogOutput.log`. |
 
 ## How it works
 
 - **Camera:** the game's `CameraResolution` computes a centered 16:9 viewport for wider screens and applies it to every camera. The plugin replaces that viewport with the full screen and hides the black side masks.
-- **UI:** every UI canvas puts its content in a panel with a 16:9 `AspectRatioFitter`, so the HUD stays centered by itself. When a solid-color, full-width image inside such a panel is enabled (hooked through `Image.OnEnable`), the plugin adds two side strips that extend it to the screen edges and mirror its color, alpha and visibility. Vignettes are stretched, the listed background images are scaled up, and a `RectMask2D` on each panel keeps parked off-screen UI hidden.
+- **UI:** every UI canvas puts its content in a panel with a 16:9 `AspectRatioFitter`, so the HUD stays centered by itself. When a solid-color, full-width image inside such a panel is enabled (hooked through `Image.OnEnable`), the plugin adds two side strips that extend it to the screen edges and mirror its color, alpha and visibility. Vignettes are stretched, the listed background images and overlays that switch to a picture at runtime (loading backgrounds) are scaled up to cover the width, and a `RectMask2D` on each panel keeps parked off-screen UI hidden.
+- **Pixel-art scenes:** these are a 320×180 masked image shown at 4× inside a 1920×1080 container, so they fill only 2/3 of the 16:9 area by design. The plugin scales the container so the image fills the screen height (exactly 8× at 1440p).
 - **World-following UI:** the game positions bubbles and markers with `Camera.WorldToViewportPoint` and puts the result in the anchors of an element inside the 16:9 panel. With the widened camera, 0–1 covers the whole screen instead of the panel, so everything drifts toward the center (the misaligned sushi bar bubbles known from other ultrawide workarounds). The plugin remaps the x of that call for the widened cameras so 0–1 means the 16:9 area again, and exempts these elements from the panel clipping so they also show in the side areas.
 
 The game's own layout is never modified for the HUD, so menus and navigation behave as on a 16:9 screen.

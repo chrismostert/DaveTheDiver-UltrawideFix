@@ -9,6 +9,8 @@ instead of showing black bars at the sides.
     so nothing ends up in the far corners of your screen.
   * Screen fades, dimmed backgrounds behind popups and cutscene bars are extended
     to the full width.
+  * The small pixel-art scenes (e.g. after a Time Skip) fill the screen height,
+    and loading screen backgrounds fill the width.
   * Bubbles and markers that follow things in the world (sushi bar orders,
     speech bubbles, damage numbers) stay above their target.
   * Below 16:9 or at 16:9 the game behaves exactly as without the fix.
@@ -49,6 +51,8 @@ with Notepad:
                    (otherwise it can show up at the edges).
   FixWorldUI       Keep sushi bar order bubbles, speech bubbles, damage numbers
                    etc. above their target.
+  ScaleCutscenes   Show the small pixel-art scenes (e.g. after a Time Skip) at
+                   full screen height instead of 2/3 size.
   CoverImages      Full-screen background pictures that are zoomed to fill the
                    width instead of showing bars next to them.
 
