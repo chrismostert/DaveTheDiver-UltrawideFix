@@ -31,6 +31,8 @@
     <Reference Include="$(GameDir)\BepInEx\interop\UnityEngine.UI.dll" Private="false" />
     <Reference Include="$(GameDir)\BepInEx\interop\UnityEngine.UIModule.dll" Private="false" />
     <Reference Include="$(GameDir)\BepInEx\interop\Assembly-CSharp.dll" Private="false" />
+    <!-- Steamworks is only used by the diagnostics build (cloud save commands). -->
+    <Reference Include="$(GameDir)\BepInEx\interop\com.rlabrecque.steamworks.net.dll" Private="false" Condition="$(DefineConstants.Contains('DIAG'))" />
   </ItemGroup>
 
 </Project>

@@ -19,6 +19,7 @@ public class Plugin : BasePlugin
     internal static ConfigEntry<bool> Enabled;
     internal static ConfigEntry<bool> WidenOverlays;
     internal static ConfigEntry<bool> ClipUI;
+    internal static ConfigEntry<bool> FixWorldUi;
     internal static ConfigEntry<string> CoverImages;
     internal static bool DebugLog;
 
@@ -31,6 +32,9 @@ public class Plugin : BasePlugin
             "Stretch full-screen fades and popup dimming backgrounds to the full screen width. HUD and menus stay in a centered 16:9 area.");
         ClipUI = Config.Bind("General", "ClipUIToCenter", true,
             "Hide UI that the game parks just outside the 16:9 area (e.g. slide-in tabs), exactly like on a 16:9 screen.");
+        FixWorldUi = Config.Bind("General", "FixWorldUI", true,
+            "Keep UI that follows things in the world (sushi bar order bubbles, speech bubbles, damage numbers, prompts) " +
+            "lined up with its target. Without this it drifts toward the center of the screen.");
         CoverImages = Config.Bind("General", "CoverImages", "Title,DummySushiBar",
             "Comma-separated names of full-screen background images that are scaled up to fill the screen width " +
             "(cropping a little at the top and bottom) instead of showing bars at the sides.");
@@ -38,7 +42,9 @@ public class Plugin : BasePlugin
 #if DIAG
         DebugLog = true;
 #endif
-        OverlayExtender.Init(new Harmony(Guid));
+        var harmony = new Harmony(Guid);
+        OverlayExtender.Init(harmony);
+        WorldUiFix.Init(harmony);
         AddComponent<UltrawideBehaviour>();
 #if DIAG
         AddComponent<DiagBehaviour>();
@@ -68,6 +74,7 @@ public class UltrawideBehaviour : MonoBehaviour
         {
             if (Plugin.Enabled.Value) Apply();
             OverlayExtender.Update(); // also turns its masks off when disabled / not ultrawide
+            WorldUiFix.Update();
         }
         catch (Exception e) { Plugin.L.LogError(e); enabled = false; }
     }

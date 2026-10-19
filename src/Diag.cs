@@ -1,6 +1,8 @@
 #if DIAG
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using BepInEx;
 using Il2CppInterop.Runtime;
@@ -144,6 +146,76 @@ public class DiagBehaviour : MonoBehaviour
                 if (go == null) { Plugin.L.LogInfo("not found: " + path); break; }
                 for (var t = go.transform; t != null; t = t.parent)
                     Plugin.L.LogInfo($"  {t.name} rot={t.localEulerAngles} q={t.localRotation} scale={t.localScale}");
+                break;
+            }
+            case "cloudls":
+            {
+                // The game keeps its saves in Steam Cloud (ISteamRemoteStorage) and overwrites the local
+                // files from there on every start.
+                int count = Steamworks.SteamRemoteStorage.GetFileCount();
+                var sb = new StringBuilder();
+                for (int i = 0; i < count; i++)
+                {
+                    var name = Steamworks.SteamRemoteStorage.GetFileNameAndSize(i, out int size);
+                    sb.AppendLine($"  {name} {size} bytes, ts={Steamworks.SteamRemoteStorage.GetFileTimestamp(name)}");
+                }
+                Plugin.L.LogInfo($"CLOUD {count} files\n{sb}");
+                break;
+            }
+            case "cloudput":
+            {
+                // cloudput <local folder>: writes each file in the folder to the cloud file with the same name
+                // (only names that already exist in the cloud). Use to restore a save backup.
+                var dir = string.Join(" ", a, 1, a.Length - 1);
+                int count = Steamworks.SteamRemoteStorage.GetFileCount();
+                var cloudNames = new List<string>();
+                for (int i = 0; i < count; i++) cloudNames.Add(Steamworks.SteamRemoteStorage.GetFileNameAndSize(i, out _));
+                foreach (var file in Directory.GetFiles(dir))
+                {
+                    var name = Path.GetFileName(file);
+                    var cloudName = cloudNames.FirstOrDefault(n => n == name || n.EndsWith("/" + name));
+                    if (cloudName == null) { Plugin.L.LogInfo($"  skip {name} (not in cloud)"); continue; }
+                    var bytes = File.ReadAllBytes(file);
+                    bool ok = Steamworks.SteamRemoteStorage.FileWrite(cloudName, bytes, bytes.Length);
+                    Plugin.L.LogInfo($"  {cloudName} <- {name} ({bytes.Length} bytes): {ok}");
+                }
+                break;
+            }
+            case "wtv":
+                Plugin.L.LogInfo($"WorldToViewportPoint postfix calls: {WorldUiFix.DiagCalls}");
+                break;
+            case "bytes":
+            {
+                // bytes <rva hex> ... : first 16 bytes of GameAssembly code at that RVA
+                var ga = System.Diagnostics.Process.GetCurrentProcess().Modules.Cast<System.Diagnostics.ProcessModule>().First(m => m.ModuleName == "GameAssembly.dll").BaseAddress;
+                foreach (var hex in a.Skip(1))
+                {
+                    var p = new IntPtr(ga.ToInt64() + Convert.ToInt64(hex, 16));
+                    var buf = new byte[16];
+                    System.Runtime.InteropServices.Marshal.Copy(p, buf, 0, 16);
+                    Plugin.L.LogInfo($"{hex}: {BitConverter.ToString(buf)}");
+                }
+                break;
+            }
+            case "cust":
+            {
+                // Customer bubbles: where the anchor's world point is on screen vs where the bubble is.
+                var sb = new StringBuilder();
+                foreach (var info in UnityEngine.Object.FindObjectsOfType<CustomerActionInfo>())
+                {
+                    var rt = info.m_RectTransform;
+                    var wt = info.m_WorldTransform;
+                    if (rt == null || wt == null) continue;
+                    var cam = info.TargetCamera;
+                    var canvas = rt.GetComponentInParent<Canvas>();
+                    var uiCam = canvas != null && canvas.rootCanvas.renderMode != RenderMode.ScreenSpaceOverlay ? canvas.rootCanvas.worldCamera : null;
+                    var want = cam != null ? cam.WorldToScreenPoint(wt.position) : Vector3.zero;
+                    var got = RectTransformUtility.WorldToScreenPoint(uiCam, rt.position);
+                    var parent = rt.parent.TryCast<RectTransform>();
+                    sb.AppendLine($"{Path2(rt)} act={rt.gameObject.activeInHierarchy} cam={(cam != null ? cam.name + " " + R(cam.rect) : "-")} " +
+                                  $"anchor={rt.anchorMin} wantScreen=({want.x:F0},{want.y:F0}) bubbleScreen=({got.x:F0},{got.y:F0}) dx={got.x - want.x:F0} parentW={(parent != null ? parent.rect.width : 0):F0}");
+                }
+                Plugin.L.LogInfo("CUST\n" + sb);
                 break;
             }
             case "cams":

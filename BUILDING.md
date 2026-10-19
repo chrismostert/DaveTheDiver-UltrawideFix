@@ -45,7 +45,11 @@ It turns on verbose logging and watches `<game>/BepInEx/cmd.txt`. Write a comman
 | `at <x> <y>` | UI graphics under a screen point (pixels, origin bottom-left) |
 | `img <path>` / `xf <path>` | Image details / transform chain of a GameObject |
 | `invoke <path>` | Invoke a `Button`'s `onClick` (use `\|` for spaces in names) |
+| `cust` | Sushi bar bubbles: where each should be on screen vs where it is (`dx` should be 0) |
+| `wtv` | Number of `WorldToViewportPoint` calls the hook has seen |
+| `bytes <rva> ...` | First bytes of `GameAssembly.dll` functions in memory (a hooked function starts with `FF-25`) |
 | `res <w> <h> <mode>` | `Screen.SetResolution` |
+| `cloudls` / `cloudput <folder>` | List the game's Steam Cloud save files / overwrite them with a folder's files (restoring a save backup; the game re-downloads its cloud saves on every start, so copying local files isn't enough) |
 
 Don't ship a diagnostics build.
 
@@ -68,4 +72,5 @@ Bump `Version` in `src/Plugin.cs` before packaging a new release.
 
 - BepInEx 6 is still pre-release; only bleeding-edge builds support Unity 6 (the game uses 6000.0.52f1). When updating `BEPINEX_BUILD` in `package.sh`, test a clean install, since the interop assemblies change.
 - After a game update BepInEx regenerates the interop assemblies on the next launch. If the game renames members the plugin uses (`CameraResolution.m_CameraViewRect`, `m_LeftLetterBoxModifier`, …), the build fails and the plugin needs updating.
+- Il2CppDumper/script.json lists overloads separately, but to tell which native function is which overload, look at a call site: IL2CPP passes a hidden `MethodInfo*` as the last argument, so `WorldToViewportPoint(Vector3)` is called with 4 register arguments, not the `eye` overload. Check with the `bytes` diagnostics command that the function the game actually calls got hooked.
 - Don't hook `CameraResolution.SetResolution`, `UpdateWideResolution` or `UpdateAutoResolution` with Harmony. IL2CPP compiled `UpdateWideResolution` and `UpdateAutoResolution` into the same native function, and hooking them crashed the game or threw exceptions. The plugin works around them in `LateUpdate` instead.
