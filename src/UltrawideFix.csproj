@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <AssemblyName>DaveTheDiverUltrawide</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <DebugType>none</DebugType>
+    <!--
+      Game folder with BepInEx installed and the game launched once, so that BepInEx/interop exists.
+      Override with: dotnet build -p:GameDir="D:\Games\Dave the Diver"
+    -->
+    <GameDir Condition="'$(GameDir)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Dave the Diver</GameDir>
+  </PropertyGroup>
+
+  <Target Name="CheckGameDir" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="!Exists('$(GameDir)\BepInEx\interop\Assembly-CSharp.dll')"
+           Text="BepInEx interop assemblies not found in '$(GameDir)\BepInEx\interop'. Install BepInEx into the game, launch the game once, and pass -p:GameDir=&quot;path\to\Dave the Diver&quot; if the game isn't in the default Steam location. See BUILDING.md." />
+  </Target>
+
+  <ItemGroup>
+    <Reference Include="$(GameDir)\BepInEx\core\BepInEx.Core.dll" Private="false" />
+    <Reference Include="$(GameDir)\BepInEx\core\BepInEx.Unity.IL2CPP.dll" Private="false" />
+    <Reference Include="$(GameDir)\BepInEx\core\Il2CppInterop.Runtime.dll" Private="false" />
+    <Reference Include="$(GameDir)\BepInEx\core\Il2CppInterop.Common.dll" Private="false" />
+    <Reference Include="$(GameDir)\BepInEx\core\0Harmony.dll" Private="false" />
+    <Reference Include="$(GameDir)\BepInEx\interop\Il2Cppmscorlib.dll" Private="false" />
+    <Reference Include="$(GameDir)\BepInEx\interop\UnityEngine.CoreModule.dll" Private="false" />
+    <Reference Include="$(GameDir)\BepInEx\interop\UnityEngine.UI.dll" Private="false" />
+    <Reference Include="$(GameDir)\BepInEx\interop\UnityEngine.UIModule.dll" Private="false" />
+    <Reference Include="$(GameDir)\BepInEx\interop\Assembly-CSharp.dll" Private="false" />
+  </ItemGroup>
+
+</Project>
