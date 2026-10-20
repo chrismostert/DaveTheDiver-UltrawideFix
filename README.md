@@ -1,6 +1,8 @@
 # Dave the Diver – Ultrawide Fix
 
-A [BepInEx](https://github.com/BepInEx/BepInEx) plugin that lets Dave the Diver use the full width of ultrawide monitors (21:9, 32:9, …) instead of showing black bars at the sides.
+A [BepInEx](https://github.com/BepInEx/BepInEx) plugin that lets Dave the Diver use the full width of ultrawide monitors (21:9, 32:9, …) instead of showing pillarbox art at the sides.
+
+![The boat at 3440×1440, vanilla and with the fix](docs/images/boat.jpg)
 
 - The game world (diving, boat, sushi bar, cutscenes, title screen) fills the whole screen.
 - HUD and menus stay in a centered 16:9 area, the way the game was designed.
@@ -10,7 +12,47 @@ A [BepInEx](https://github.com/BepInEx/BepInEx) plugin that lets Dave the Diver 
 - Story characters' boats that wait just outside the 16:9 view on the boat scene stay hidden until they sail in.
 - At 16:9 or narrower the game behaves exactly as without the fix.
 
-Tested with the Steam version v1.0.6.2113 at 3440×1440.
+Tested with the Steam version v1.0.6.2113 at 3440×1440 (21:9), and at 32:9 in a 3440×968 window.
+
+## Screenshots
+
+All taken at 3440×1440 (scaled down), vanilla on top, with the fix below.
+
+<details>
+<summary><b>Diving</b>: the reef fills the screen, the HUD stays where it was</summary>
+
+![Diving](docs/images/dive.jpg)
+</details>
+
+<details>
+<summary><b>Cutscenes</b>: the scene and the cutscene bars span the full width</summary>
+
+![Sushi bar cutscene](docs/images/cutscene.jpg)
+</details>
+
+<details>
+<summary><b>Time Skip</b>: the pixel-art scene at full screen height instead of 2/3 size</summary>
+
+![Time Skip scene](docs/images/timeskip.jpg)
+</details>
+
+<details>
+<summary><b>Loading screen</b>: the background picture covers the width</summary>
+
+![Loading screen](docs/images/loading.jpg)
+</details>
+
+<details>
+<summary><b>Evening on the boat</b></summary>
+
+![Evening](docs/images/evening.jpg)
+</details>
+
+<details>
+<summary><b>32:9</b></summary>
+
+![Diving at 32:9](docs/images/dive-32x9.jpg)
+</details>
 
 ## Install
 
