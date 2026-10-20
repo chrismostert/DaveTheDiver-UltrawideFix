@@ -212,6 +212,16 @@ public class DiagBehaviour : MonoBehaviour
                 Plugin.L.LogInfo("time skip loader started");
                 break;
             }
+            case "daytime":
+            {
+                // daytime [0|1|2] : show / set DayManager.CurrentTimeState (Morning/Afternoon/Evening); for HDR
+                // night tests - changes the in-memory day state, reload the scene (goto) or dive to see it
+                var dm = SingletonNoMono<DayManager>.s_Instance;
+                if (dm == null) { Plugin.L.LogInfo("no DayManager"); break; }
+                if (a.Length > 1) dm.CurrentTimeState = (DayTimeState)int.Parse(a[1]);
+                Plugin.L.LogInfo($"daytime {dm.CurrentTimeState} evening={dm.IsEvening} scene={UnityEngine.SceneManagement.SceneManager.GetActiveScene().name}");
+                break;
+            }
             case "goto":
             {
                 // goto <sceneName> : loads a scene like the game's travel does (no story checks; may change the save)
