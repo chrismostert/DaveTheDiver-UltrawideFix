@@ -49,6 +49,10 @@ public class Plugin : BasePlugin
         var harmony = new Harmony(Guid);
         OverlayExtender.Init(harmony);
         WorldUiFix.Init(harmony);
+        NpcBoats.Init(harmony);
+#if DIAG
+        harmony.PatchAll(typeof(WuiTrack));
+#endif
         AddComponent<UltrawideBehaviour>();
 #if DIAG
         AddComponent<DiagBehaviour>();
@@ -76,11 +80,29 @@ public class UltrawideBehaviour : MonoBehaviour
     {
         try
         {
+#if DIAG
+            long t = System.Diagnostics.Stopwatch.GetTimestamp();
+            if (Plugin.Enabled.Value) Apply();
+            Perf.Mark(0, ref t);
+            OverlayExtender.Update();
+            Perf.Mark(1, ref t);
+            WorldUiFix.Update();
+            Perf.Mark(2, ref t);
+            PixelCutscenes.Update();
+            Perf.Mark(3, ref t);
+            SushiBarScenery.Update();
+            Perf.Mark(4, ref t);
+            NpcBoats.Update();
+            Perf.Mark(5, ref t);
+            Perf.EndFrame();
+#else
             if (Plugin.Enabled.Value) Apply();
             OverlayExtender.Update(); // also turns its masks off when disabled / not ultrawide
             WorldUiFix.Update();
             PixelCutscenes.Update();
             SushiBarScenery.Update();
+            NpcBoats.Update();
+#endif
         }
         catch (Exception e) { Plugin.L.LogError(e); enabled = false; }
     }

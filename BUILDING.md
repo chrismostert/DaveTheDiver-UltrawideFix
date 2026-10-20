@@ -46,10 +46,17 @@ It turns on verbose logging and watches `<game>/BepInEx/cmd.txt`. Write a comman
 | `img <path>` / `xf <path>` | Image details / transform chain of a GameObject |
 | `invoke <path>` | Invoke a `Button`'s `onClick` (use `\|` for spaces in names) |
 | `cust` | Sushi bar bubbles: where each should be on screen vs where it is (`dx` should be 0) |
-| `wtv` | Number of `WorldToViewportPoint` calls the hook has seen |
+| `wtv` | Number of `WorldToViewportPoint` calls the hook has seen, and how many it remapped |
+| `goto <scene>` | Load a scene the way travel does (`DR_SushiBar`, `DR_Farm`, `DR_FishFarm`, `MermanVillage`, `Mini_BattleVIP`, `Mini_Momo`, `GlacialArea_Main_01`, `DR_Dredge`, `Boss_005_Gardon`, ...). No story checks; changes the save |
+| `ui <dmg\|emoji\|talk\|guide\|sub> <vx> [vy]` | Show world UI (damage number, emoji, speech bubble, guide arrow, sub-helper effect) on a dummy target at viewport (vx, vy) of the full screen |
+| `wui` / `wuiclear` | Alignment report of world UI positioned by the hooked methods: offset of each element from its projected target. Correct = the same offset at every screen position (and at 16:9) |
+| `gfx <name>` | Clipping state (maskable, culled, RectMask2D) of every graphic under an object |
+| `perf` | Average / max time per frame of each part of the plugin since the last `perf` (send it twice with a pause in between) |
+| `findtest <Type>` | Cost of the `FindObjectsOfType` / `FindObjectsByType` variants for a type (all take milliseconds: they walk every object) |
 | `bytes <rva> ...` | First bytes of `GameAssembly.dll` functions in memory (a hooked function starts with `FF-25`) |
 | `res <w> <h> <mode>` | `Screen.SetResolution` |
 | `tsl` / `tsl off` | Show / hide the Time Skip loading scene for the current area (visual only, doesn't skip time) |
+| `boats` / `boatin <n>` / `boatout` | NPC boats on the boat scene (character number, position, hidden) / sail boat `n` in like a story event (locks input until it arrives) / send it away. Visual only, no story progress |
 | `show <0\|1> <path>` | `SetActive` on an object, also inactive ones below an active root |
 | `cloudls` / `cloudput <folder>` | List the game's Steam Cloud save files / overwrite them with a folder's files (restoring a save backup; the game re-downloads its cloud saves on every start, so copying local files isn't enough) |
 | `edges [minPx]` | World renderers that reach into the side areas outside the 16:9 strip, with their screen extent |

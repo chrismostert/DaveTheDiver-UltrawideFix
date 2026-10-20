@@ -212,8 +212,92 @@ public class DiagBehaviour : MonoBehaviour
                 Plugin.L.LogInfo("time skip loader started");
                 break;
             }
+            case "goto":
+            {
+                // goto <sceneName> : loads a scene like the game's travel does (no story checks; may change the save)
+                var gl = Singleton<GlobalSceneLoader>._instance;
+                if (gl == null || gl.sceneLoader == null) { Plugin.L.LogInfo("no scene loader"); break; }
+                gl.sceneLoader.ChangeSceneAsync(a[1], SceneTransitionType.None, true, false, true, true, false, null, null, true, false, false, false);
+                Plugin.L.LogInfo($"loading {a[1]}");
+                break;
+            }
+            case "ui":
+            {
+                // ui <dmg|emoji|talk|guide|sub> <vx> [vy] : spawns world UI on a dummy target at viewport (vx, vy)
+                // of the main camera (full screen, 0..1), at the depth of the player
+                var cam = Camera.main;
+                if (cam == null) { Plugin.L.LogInfo("no main camera"); break; }
+                float vx = float.Parse(a[2], System.Globalization.CultureInfo.InvariantCulture);
+                float vy = a.Length > 3 ? float.Parse(a[3], System.Globalization.CultureInfo.InvariantCulture) : 0.5f;
+                float depth = 10f;
+                var player = GameObject.FindWithTag("Player");
+                if (player != null) depth = Vector3.Dot(player.transform.position - cam.transform.position, cam.transform.forward);
+                var world = cam.ViewportToWorldPoint(new Vector3(vx, vy, depth));
+                var target = new GameObject($"DiagTarget_{a[1]}_{vx:F2}").transform;
+                target.position = world;
+                UnityEngine.Object.Destroy(target.gameObject, 8f);
+                Component panel = null;
+                switch (a[1])
+                {
+                    case "dmg": { var p = FindActiveFirst<DamageTextPoolPanel>(); panel = p; p?.ShowDamageText(123, target, world); break; }
+                    case "emoji": { var p = FindActiveFirst<EmojiPanel>(); panel = p; p?.ShowEmoji(target, EmojiType.Question, 6f); break; }
+                    case "talk": { var p = FindActiveFirst<TalkBoxPanel>(); panel = p; p?.ShowMessage(target, "Test", 6f, 0f, null); break; }
+                    case "guide": { var p = FindActiveFirst<GuideHelperPanel>(); panel = p; p?.ShowGuidePointerUI(target, true, GuideHelperPanel.GuidePointType.Normal); break; }
+                    case "sub": { var p = FindActiveFirst<SubHelperUtilPanel>(); panel = p; p?.ShowSubHelperEffect(SubHelperEffectUIType.Reload, target, Vector3.zero); break; }
+                    default: Plugin.L.LogInfo("unknown kind"); break;
+                }
+                Plugin.L.LogInfo($"  panel: {(panel != null ? Path2(panel.transform) + (panel.gameObject.activeInHierarchy ? "" : " [inactive]") : "not found")}");
+                Plugin.L.LogInfo($"ui {a[1]} at viewport ({vx}, {vy}) world {world} depth {depth:F1}");
+                break;
+            }
+            case "gfx":
+            {
+                // gfx <name> : clipping state of every graphic under a GameObject (found like "tree")
+                var go = GameObject.Find(a[1]);
+                if (go == null) { Plugin.L.LogInfo("not found"); break; }
+                var sb = new StringBuilder();
+                foreach (var g in go.GetComponentsInChildren<MaskableGraphic>(true))
+                {
+                    var cr = g.canvasRenderer;
+                    var rm = g.GetComponentInParent<RectMask2D>();
+                    var mk = g.GetComponentInParent<Mask>();
+                    sb.AppendLine($"  {Path2(g.transform)} act={g.isActiveAndEnabled} maskable={g.maskable} cull={cr.cull} rectClip={cr.hasRectClipping} alpha={g.color.a * cr.GetInheritedAlpha():F2} rectMask2D={(rm != null ? rm.name : "-")} mask={(mk != null ? mk.name + (mk.enabled ? "" : "(off)") : "-")}");
+                }
+                Plugin.L.LogInfo("GFX\n" + sb);
+                break;
+            }
+            case "wui":
+                Plugin.L.LogInfo("WUI\n" + WuiTrack.Report());
+                break;
+            case "wuiclear":
+                WuiTrack.Entries.Clear();
+                break;
+            case "findtest":
+            {
+                // findtest <TypeName> : cost of the different ways to find all objects of a type
+                var t = AppDomain.CurrentDomain.GetAssemblies()
+                    .Where(x => !x.IsDynamic && x.Location.Replace('\\', '/').Contains("/BepInEx/interop/"))
+                    .Select(x => x.GetType(a[1])).FirstOrDefault(x => x != null);
+                if (t == null) { Plugin.L.LogInfo("type not found"); break; }
+                var it = Il2CppType.From(t);
+                var sw = new System.Diagnostics.Stopwatch();
+                int n;
+                sw.Restart(); n = UnityEngine.Object.FindObjectsOfType(it, true).Length; sw.Stop();
+                Plugin.L.LogInfo($"FindObjectsOfType(incl inactive): {n} in {sw.Elapsed.TotalMilliseconds:F3} ms");
+                sw.Restart(); n = UnityEngine.Object.FindObjectsOfType(it, false).Length; sw.Stop();
+                Plugin.L.LogInfo($"FindObjectsOfType(active): {n} in {sw.Elapsed.TotalMilliseconds:F3} ms");
+                sw.Restart(); n = UnityEngine.Object.FindObjectsByType(it, FindObjectsInactive.Include, FindObjectsSortMode.None).Length; sw.Stop();
+                Plugin.L.LogInfo($"FindObjectsByType(incl inactive, unsorted): {n} in {sw.Elapsed.TotalMilliseconds:F3} ms");
+                sw.Restart(); n = UnityEngine.Object.FindObjectsByType(it, FindObjectsInactive.Exclude, FindObjectsSortMode.None).Length; sw.Stop();
+                Plugin.L.LogInfo($"FindObjectsByType(active, unsorted): {n} in {sw.Elapsed.TotalMilliseconds:F3} ms");
+                break;
+            }
+            case "perf":
+                // perf : time per module since the last "perf" (the first call just starts measuring)
+                Plugin.L.LogInfo("PERF\n" + Perf.Report());
+                break;
             case "wtv":
-                Plugin.L.LogInfo($"WorldToViewportPoint postfix calls: {WorldUiFix.DiagCalls}");
+                Plugin.L.LogInfo($"WorldToViewportPoint postfix calls: {WorldUiFix.DiagCalls}, remapped: {WorldUiFix.DiagRemapped}");
                 break;
             case "bytes":
             {
@@ -380,6 +464,26 @@ public class DiagBehaviour : MonoBehaviour
                 Plugin.L.LogInfo($"findperf '{name}' found={(go != null ? Path2(go.transform) : "-")} {sw.Elapsed.TotalMilliseconds * 10:F1} us per call, {count} active transforms");
                 break;
             }
+            case "boats":
+                Plugin.L.LogInfo("BOATS\n" + NpcBoats.Describe());
+                break;
+            case "boatin":
+            {
+                // boatin <CharacterType number> : sails that NPC boat in like a story event (locks input until it arrives)
+                var dock = NpcBoats.Dock;
+                if (dock == null) { Plugin.L.LogInfo("no dock"); break; }
+                var type = (CharacterType)int.Parse(a[1]);
+                dock.EnterNPCBoat(type, (Il2CppSystem.Action)(System.Action)(() => Plugin.L.LogInfo($"boat {type} arrived")));
+                break;
+            }
+            case "boatout":
+            {
+                // boatout : sends the current NPC boat away again
+                var dock = NpcBoats.Dock;
+                if (dock == null) { Plugin.L.LogInfo("no dock"); break; }
+                dock.ExitNPCBoat((Il2CppSystem.Action)(System.Action)(() => Plugin.L.LogInfo("boat left")));
+                break;
+            }
             case "tree":
             {
                 // tree <rootName> [maxDepth]
@@ -447,6 +551,20 @@ public class DiagBehaviour : MonoBehaviour
 
     static string R(UnityEngine.Rect r) => $"({r.x:F3},{r.y:F3},{r.width:F3},{r.height:F3})";
 
+    internal static string PathOf(Transform t) => Path2(t);
+
+    /// <summary>An active instance if there is one (scenes keep inactive copies of HUD panels), else any.</summary>
+    static T FindActiveFirst<T>() where T : Component
+    {
+        T any = null;
+        foreach (var c in UnityEngine.Object.FindObjectsOfType<T>(true))
+        {
+            if (c.gameObject.activeInHierarchy) return c;
+            any ??= c;
+        }
+        return any;
+    }
+
     static string Path2(Transform t)
     {
         var s = t.name;
@@ -476,6 +594,111 @@ public class DiagBehaviour : MonoBehaviour
                 (cs != null ? $" scaler={cs.uiScaleMode} ref={cs.referenceResolution} match={cs.matchWidthOrHeight} sm={cs.screenMatchMode}" : ""));
         }
         Plugin.L.LogInfo("DUMP\n" + sb);
+    }
+}
+
+/// <summary>
+/// Alignment check for world-following UI (DIAG command "wui"): records which RectTransform a hooked
+/// world-UI method positions and which world point it projected just before, then reports where the
+/// element is on screen relative to that point. A correctly placed element keeps the same offset
+/// wherever its target is; a wrong remap makes the offset grow with the distance from the center.
+/// </summary>
+[HarmonyPatch]
+public static class WuiTrack
+{
+    public class Entry
+    {
+        public RectTransform Rt;
+        public Vector3 World;
+        public Camera Cam;
+        public string Type;
+        public int Frame;
+    }
+
+    public static readonly Dictionary<IntPtr, Entry> Entries = new();
+
+    [HarmonyPostfix, HarmonyPatch(typeof(RectTransform), nameof(RectTransform.anchorMin), MethodType.Setter)]
+    static void AnchorMin(RectTransform __instance) => Record(__instance);
+
+    [HarmonyPostfix, HarmonyPatch(typeof(RectTransform), nameof(RectTransform.anchoredPosition), MethodType.Setter)]
+    static void AnchoredPosition(RectTransform __instance) => Record(__instance);
+
+    static void Record(RectTransform rt)
+    {
+        if (WorldUiFix.DiagScope <= 0 || WorldUiFix.DiagLastCam == null || rt == null) return;
+        if (!Entries.TryGetValue(rt.Pointer, out var e)) Entries[rt.Pointer] = e = new Entry { Rt = rt };
+        e.World = WorldUiFix.DiagLastWorld;
+        e.Cam = WorldUiFix.DiagLastCam;
+        e.Type = WorldUiFix.DiagScopeType;
+        e.Frame = Time.frameCount;
+    }
+
+    public static string Report()
+    {
+        var sb = new StringBuilder($"screen {Screen.width}x{Screen.height}; offset = element center - projected target (px)\n");
+        foreach (var e in Entries.Values.OrderBy(x => x.Type).ThenBy(x => x.Cam != null ? x.Cam.WorldToScreenPoint(x.World).x : 0))
+        {
+            if (e.Rt == null || e.Cam == null || !e.Rt.gameObject.activeInHierarchy) continue;
+            if (Time.frameCount - e.Frame > 600) continue; // not positioned for ~5 s
+            var target = e.Cam.WorldToScreenPoint(e.World);
+            var canvas = e.Rt.GetComponentInParent<Canvas>();
+            if (canvas == null) continue;
+            var root = canvas.rootCanvas;
+            var uiCam = root.renderMode == RenderMode.ScreenSpaceOverlay ? null : root.worldCamera;
+            var center = RectTransformUtility.WorldToScreenPoint(uiCam, e.Rt.TransformPoint(e.Rt.rect.center));
+            sb.AppendLine($"  {e.Type,-40} targetX={target.x,6:F0} ({target.x / Screen.width:F2}) offset=({center.x - target.x,6:F0},{center.y - target.y,6:F0}) {DiagBehaviour.PathOf(e.Rt)}");
+        }
+        return sb.ToString();
+    }
+}
+
+/// <summary>Per-module time spent in the plugin's LateUpdate and hooks (DIAG command "perf").</summary>
+public static class Perf
+{
+    public static readonly string[] Names = { "Apply", "OverlayExtender", "WorldUiFix", "PixelCutscenes", "SushiBarScenery", "NpcBoats", "Remap hook (own time)" };
+    public const int Remap = 6;
+    static readonly long[] Total = new long[Names.Length];
+    static readonly long[] Max = new long[Names.Length];
+    static readonly long[] Frame = new long[Names.Length];
+    static readonly int[] Calls = new int[Names.Length];
+    static int _frames;
+
+    /// <summary>Adds the time since <paramref name="t"/> to a slot and restarts <paramref name="t"/>.</summary>
+    public static void Mark(int slot, ref long t)
+    {
+        long now = System.Diagnostics.Stopwatch.GetTimestamp();
+        Frame[slot] += now - t;
+        Calls[slot]++;
+        t = now;
+    }
+
+    public static void Add(int slot, long ticks) { Frame[slot] += ticks; Calls[slot]++; }
+
+    /// <summary>Closes the current frame (frame maxima are per frame, so hook calls add up).</summary>
+    public static void EndFrame()
+    {
+        _frames++;
+        for (int i = 0; i < Names.Length; i++)
+        {
+            Total[i] += Frame[i];
+            if (Frame[i] > Max[i]) Max[i] = Frame[i];
+            Frame[i] = 0;
+        }
+    }
+
+    public static string Report()
+    {
+        double us = 1e6 / System.Diagnostics.Stopwatch.Frequency;
+        var sb = new StringBuilder($"{_frames} frames\n");
+        long sum = 0;
+        for (int i = 0; i < Names.Length; i++)
+        {
+            sum += Total[i];
+            sb.AppendLine($"  {Names[i],-24} avg {Total[i] * us / Math.Max(1, _frames),8:F1} us/frame   max {Max[i] * us,8:F1} us   calls/frame {(double)Calls[i] / Math.Max(1, _frames):F1}");
+        }
+        sb.AppendLine($"  {"total",-24} avg {sum * us / Math.Max(1, _frames),8:F1} us/frame");
+        Array.Clear(Total); Array.Clear(Max); Array.Clear(Calls); _frames = 0;
+        return sb.ToString();
     }
 }
 
