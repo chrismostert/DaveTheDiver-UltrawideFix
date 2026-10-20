@@ -484,6 +484,51 @@ public class DiagBehaviour : MonoBehaviour
                 dock.ExitNPCBoat((Il2CppSystem.Action)(System.Action)(() => Plugin.L.LogInfo("boat left")));
                 break;
             }
+            case "mesh":
+            {
+                // mesh <path> : transform, mesh bounds, material/texture and the screen position of the
+                // mesh's local bounds corners (to see where a scenery card ends on screen)
+                var path = string.Join(" ", a, 1, a.Length - 1).Replace('|', ' ');
+                var t = FindAny(path);
+                if (t == null) { Plugin.L.LogInfo("not found: " + path); break; }
+                var sb = new StringBuilder($"MESH {Path2(t)} pos={t.position} lpos={t.localPosition} rot={t.eulerAngles} lscale={t.localScale} lossy={t.lossyScale}\n");
+                var mf = t.GetComponent<MeshFilter>();
+                var mr = t.GetComponent<Renderer>();
+                if (mf != null && mf.sharedMesh != null)
+                {
+                    var m = mf.sharedMesh;
+                    var lb = m.bounds;
+                    sb.AppendLine($"  mesh={m.name} verts={m.vertexCount} lbounds c={lb.center} ext={lb.extents}");
+                    var cam = Camera.main;
+                    for (int i = 0; i < 8 && cam != null; i++)
+                    {
+                        var c = lb.center + Vector3.Scale(lb.extents, new Vector3((i & 1) == 0 ? -1 : 1, (i & 2) == 0 ? -1 : 1, (i & 4) == 0 ? -1 : 1));
+                        var w = t.TransformPoint(c);
+                        var s = cam.WorldToScreenPoint(w);
+                        sb.AppendLine($"  corner {c} -> world {w} -> screen ({s.x:F0}, {s.y:F0}, {s.z:F1})");
+                    }
+                }
+                if (mr != null)
+                    foreach (var mat in mr.sharedMaterials)
+                    {
+                        if (mat == null) continue;
+                        var tex = mat.mainTexture;
+                        sb.AppendLine($"  mat={mat.name} shader={mat.shader.name} queue={mat.renderQueue} tex={(tex != null ? $"{tex.name} {tex.width}x{tex.height} wrap={tex.wrapMode}" : "-")} st={mat.mainTextureScale}/{mat.mainTextureOffset}");
+                    }
+                Plugin.L.LogInfo(sb.ToString());
+                break;
+            }
+            case "xfset":
+            {
+                // xfset <px> <py> <pz> <sx> <sy> <sz> <path> : set localPosition and localScale
+                var path = string.Join(" ", a, 7, a.Length - 7).Replace('|', ' ');
+                var t = FindAny(path);
+                if (t == null) { Plugin.L.LogInfo("not found: " + path); break; }
+                t.localPosition = new Vector3(F(a[1]), F(a[2]), F(a[3]));
+                t.localScale = new Vector3(F(a[4]), F(a[5]), F(a[6]));
+                Plugin.L.LogInfo($"{path} lpos={t.localPosition} lscale={t.localScale}");
+                break;
+            }
             case "tree":
             {
                 // tree <rootName> [maxDepth]
@@ -503,6 +548,8 @@ public class DiagBehaviour : MonoBehaviour
     }
 
     /// <summary>Finds "root/child/..." where children may be inactive (GameObject.Find only sees active ones).</summary>
+    static float F(string s) => float.Parse(s, System.Globalization.CultureInfo.InvariantCulture);
+
     static Transform FindAny(string path)
     {
         var go = GameObject.Find(path);
@@ -655,8 +702,8 @@ public static class WuiTrack
 /// <summary>Per-module time spent in the plugin's LateUpdate and hooks (DIAG command "perf").</summary>
 public static class Perf
 {
-    public static readonly string[] Names = { "Apply", "OverlayExtender", "WorldUiFix", "PixelCutscenes", "SushiBarScenery", "NpcBoats", "Remap hook (own time)" };
-    public const int Remap = 6;
+    public static readonly string[] Names = { "Apply", "OverlayExtender", "WorldUiFix", "PixelCutscenes", "SushiBarScenery", "NpcBoats", "LobbyClouds", "Remap hook (own time)" };
+    public const int Remap = 7;
     static readonly long[] Total = new long[Names.Length];
     static readonly long[] Max = new long[Names.Length];
     static readonly long[] Frame = new long[Names.Length];

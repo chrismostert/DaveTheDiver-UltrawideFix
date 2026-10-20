@@ -56,6 +56,8 @@ It turns on verbose logging and watches `<game>/BepInEx/cmd.txt`. Write a comman
 | `bytes <rva> ...` | First bytes of `GameAssembly.dll` functions in memory (a hooked function starts with `FF-25`) |
 | `res <w> <h> <mode>` | `Screen.SetResolution` |
 | `tsl` / `tsl off` | Show / hide the Time Skip loading scene for the current area (visual only, doesn't skip time) |
+| `mesh <path>` | Transform, mesh bounds, material/texture and the screen position of the mesh bounds corners (e.g. where a cloud card ends) |
+| `xfset <px> <py> <pz> <sx> <sy> <sz> <path>` | Set an object's local position and scale (try a fix live) |
 | `boats` / `boatin <n>` / `boatout` | NPC boats on the boat scene (character number, position, hidden) / sail boat `n` in like a story event (locks input until it arrives) / send it away. Visual only, no story progress |
 | `show <0\|1> <path>` | `SetActive` on an object, also inactive ones below an active root |
 | `cloudls` / `cloudput <folder>` | List the game's Steam Cloud save files / overwrite them with a folder's files (restoring a save backup; the game re-downloads its cloud saves on every start, so copying local files isn't enough) |

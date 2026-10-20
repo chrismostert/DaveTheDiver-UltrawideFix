@@ -94,6 +94,8 @@ public class UltrawideBehaviour : MonoBehaviour
             Perf.Mark(4, ref t);
             NpcBoats.Update();
             Perf.Mark(5, ref t);
+            LobbyClouds.Update();
+            Perf.Mark(6, ref t);
             Perf.EndFrame();
 #else
             if (Plugin.Enabled.Value) Apply();
@@ -102,6 +104,7 @@ public class UltrawideBehaviour : MonoBehaviour
             PixelCutscenes.Update();
             SushiBarScenery.Update();
             NpcBoats.Update();
+            LobbyClouds.Update();
 #endif
         }
         catch (Exception e) { Plugin.L.LogError(e); enabled = false; }
