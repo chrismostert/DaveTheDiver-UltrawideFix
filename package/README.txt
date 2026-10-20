@@ -2,7 +2,7 @@ DAVE THE DIVER - ULTRAWIDE FIX
 ==============================
 
 Lets Dave the Diver use the full width of ultrawide monitors (21:9, 32:9, ...)
-instead of showing black bars at the sides.
+instead of showing pillarbox art at the sides.
 
   * The game world (diving, boat, sushi bar, cutscenes) fills the whole screen.
   * The HUD and menus stay in a centered 16:9 area, the way the game was designed,
@@ -13,6 +13,8 @@ instead of showing black bars at the sides.
     and loading screen backgrounds fill the width.
   * Bubbles and markers that follow things in the world (sushi bar orders,
     speech bubbles, damage numbers) stay above their target.
+  * Story characters' boats that wait just outside the old 16:9 view on the
+    boat stay hidden until they sail in.
   * Below 16:9 or at 16:9 the game behaves exactly as without the fix.
 
 Tested with the Steam version v1.0.6.2113 at 3440x1440.
