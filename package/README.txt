@@ -15,6 +15,7 @@ instead of showing pillarbox art at the sides.
     speech bubbles, damage numbers) stay above their target.
   * Story characters' boats that wait just outside the old 16:9 view on the
     boat stay hidden until they sail in.
+  * The sky on the boat doesn't end in a hard cloud edge on 32:9 screens.
   * Below 16:9 or at 16:9 the game behaves exactly as without the fix.
 
 Tested with the Steam version v1.0.6.2113 at 3440x1440.

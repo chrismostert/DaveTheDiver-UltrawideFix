@@ -13,7 +13,7 @@ namespace DaveTheDiverUltrawide;
 public class Plugin : BasePlugin
 {
     public const string Guid = "dtd.ultrawide";
-    public const string Version = "1.1.0";
+    public const string Version = "1.1.1";
 
     internal static ManualLogSource L;
     internal static ConfigEntry<bool> Enabled;
