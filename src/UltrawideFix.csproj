@@ -35,6 +35,7 @@
     <Reference Include="$(GameDir)\BepInEx\interop\Assembly-CSharp-firstpass.dll" Private="false" />
     <!-- Only used by the diagnostics build: Steamworks (cloud save commands), URP and ImageConversion (blur/texture commands), Sirenix (base class of some UI panels the "ui" command spawns from). -->
     <Reference Include="$(GameDir)\BepInEx\interop\Sirenix.Serialization.dll" Private="false" Condition="$(DefineConstants.Contains('DIAG'))" />
+    <Reference Include="$(GameDir)\BepInEx\interop\Unity.InputSystem.dll" Private="false" Condition="$(DefineConstants.Contains('DIAG'))" />
     <Reference Include="$(GameDir)\BepInEx\interop\com.rlabrecque.steamworks.net.dll" Private="false" Condition="$(DefineConstants.Contains('DIAG'))" />
     <Reference Include="$(GameDir)\BepInEx\interop\Unity.RenderPipelines.Universal.Runtime.dll" Private="false" Condition="$(DefineConstants.Contains('DIAG'))" />
     <Reference Include="$(GameDir)\BepInEx\interop\Unity.RenderPipelines.Core.Runtime.dll" Private="false" Condition="$(DefineConstants.Contains('DIAG'))" />

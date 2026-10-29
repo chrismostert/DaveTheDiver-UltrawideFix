@@ -49,7 +49,9 @@ It turns on verbose logging and watches `<game>/BepInEx/cmd.txt`. Write a comman
 | `wtv` | Number of `WorldToViewportPoint` calls the hook has seen, and how many it remapped |
 | `goto <scene>` | Load a scene the way travel does (`DR_SushiBar`, `DR_Farm`, `DR_FishFarm`, `MermanVillage`, `Mini_BattleVIP`, `Mini_Momo`, `GlacialArea_Main_01`, `DR_Dredge`, `Boss_005_Gardon`, ...). No story checks; changes the save |
 | `gun list` / `gun <tid>` | List all gun specs (TID, type, name, damage) / equip one on Dave (dive only; e.g. `3011601` = grenade launcher) |
-| `fire` | Aim Dave's gun at the nearest fish, fire once and move the new bullets next to the fish so the real hit/explosion path runs |
+| `fire [side] [fly]` | Aim Dave's gun at the nearest fish (`side`: only fish outside the 16:9 area), fire once and move the new bullets next to the fish so the real hit/explosion path runs (`fly`: let them fly) |
+| `fishto <vx> <vy>` / `fishto dave <dx>` | Move the nearest fish to viewport (vx, vy) of the full screen / next to Dave (for melee) |
+| `mouse <x> <y> [left\|right] [down\|up]` | Queue an Input System mouse event (screen pixels, origin bottom-left); `mouse fish ...` / `mouse fishside ...` aims at the nearest fish. Real attacks: `right down` aims the harpoon, `left down` fires it (or swings melee without aiming). Synthetic OS mouse input doesn't reach the game |
 | `ui <dmg\|emoji\|talk\|guide\|sub> <vx> [vy]` | Show world UI (damage number, emoji, speech bubble, guide arrow, sub-helper effect) on a dummy target at viewport (vx, vy) of the full screen |
 | `wui` / `wuiclear` | Alignment report of world UI positioned by the hooked methods: offset of each element from its projected target. Correct = the same offset at every screen position (and at 16:9) |
 | `gfx <name>` | Clipping state (maskable, culled, RectMask2D) of every graphic under an object |

@@ -334,20 +334,16 @@ public class DiagBehaviour : MonoBehaviour
             }
             case "fire":
             {
-                // fire : aim the player's gun at the nearest active fish and fire once
+                // fire [side] [fly] : aim the player's gun at the nearest active fish (side = only fish in the
+                // areas outside 16:9) and fire once; fly = let the bullets fly instead of placing them at the fish
+                bool side = a.Contains("side"), fly = a.Contains("fly");
                 var h = PlayerGun();
                 if (h == null || h.aim == null) { Plugin.L.LogInfo("no gun"); break; }
                 var aims = h.aim.m_AimTransforms;
                 if (aims == null || aims.Count == 0) { Plugin.L.LogInfo("no aim transforms"); break; }
                 Vector3 from = aims[0].position;
-                DR.AI.FishAISystem best = null;
-                float bestD = float.MaxValue;
-                foreach (var f in UnityEngine.Object.FindObjectsOfType<DR.AI.FishAISystem>())
-                {
-                    float d = Vector2.Distance(f.transform.position, from);
-                    if (d > 1f && d < bestD) { bestD = d; best = f; }
-                }
-                if (best == null) { Plugin.L.LogInfo("no fish"); break; }
+                var best = NearestFish(from, side, out float bestD);
+                if (best == null) break;
                 Vector3 dir = best.transform.position - from;
                 dir.z = 0;
                 foreach (var t in aims) t.right = dir.normalized;
@@ -357,13 +353,74 @@ public class DiagBehaviour : MonoBehaviour
                 // fish move and grenades arc: put the new bullets just in front of the fish so the real
                 // collision path runs
                 int moved = 0;
-                foreach (var b in UnityEngine.Object.FindObjectsOfType<GunBullet>())
+                if (!fly) foreach (var b in UnityEngine.Object.FindObjectsOfType<GunBullet>())
                 {
                     if (Vector2.Distance(b.transform.position, from) > 2f) continue;
                     b.transform.position = best.transform.position - dir.normalized * 0.3f;
                     moved++;
                 }
                 Plugin.L.LogInfo($"moved {moved} bullets next to the fish");
+                break;
+            }
+            case "fishto":
+            {
+                // fishto <vx> <vy> : move the nearest fish to viewport (vx, vy) of the full screen, at Dave's depth;
+                // fishto dave <dx> : next to Dave (dx world units to the right)
+                var cam = Camera.main;
+                var player = GameObject.FindWithTag("Player");
+                if (cam == null || player == null) { Plugin.L.LogInfo("no camera/player"); break; }
+                var pp = player.transform.position;
+                var fish = NearestFish(pp, false, out _);
+                if (fish == null) break;
+                Vector3 to;
+                if (a[1] == "dave") to = pp + new Vector3(float.Parse(a[2], System.Globalization.CultureInfo.InvariantCulture), 0.3f, 0f);
+                else
+                {
+                    float depth = Vector3.Dot(pp - cam.transform.position, cam.transform.forward);
+                    to = cam.ViewportToWorldPoint(new Vector3(float.Parse(a[1], System.Globalization.CultureInfo.InvariantCulture), float.Parse(a[2], System.Globalization.CultureInfo.InvariantCulture), depth));
+                }
+                to.z = fish.transform.position.z;
+                fish.transform.position = to;
+                Plugin.L.LogInfo($"moved {fish.name} to {to} (viewport x {cam.WorldToViewportPoint(to).x:F2})");
+                break;
+            }
+            case "mouse":
+            {
+                // mouse <x> <y> [left|right] [down|up] : queue an Input System mouse event (screen pixels, origin
+                // bottom-left). Synthetic OS mouse input doesn't reach the game, this goes through its input path.
+                // mouse fish[side] [left|right] [down|up] : at the screen position of the nearest fish to Dave
+                // (fishside = only fish outside the 16:9 area)
+                var m = UnityEngine.InputSystem.Mouse.current;
+                if (m == null) { Plugin.L.LogInfo("no mouse"); break; }
+                if (a[1].StartsWith("fish"))
+                {
+                    var player = GameObject.FindWithTag("Player");
+                    var fish = player != null ? NearestFish(player.transform.position, a[1] == "fishside", out _) : null;
+                    if (fish == null || Camera.main == null) break;
+                    var sp = Camera.main.WorldToScreenPoint(fish.transform.position);
+                    a = new[] { a[0], sp.x.ToString("F0"), sp.y.ToString("F0") }.Concat(a.Skip(2)).ToArray();
+                }
+                var buf = UnityEngine.InputSystem.LowLevel.StateEvent.From(m, out var ev, Unity.Collections.Allocator.Temp);
+                // StateEvent = 20-byte event header + 4-byte state format, then a copy of the device state;
+                // control offsets are relative to the device's state block
+                IntPtr state;
+                unsafe { state = (IntPtr)ev.data + 24; }
+                uint dev = m.stateBlock.byteOffset;
+                var pos = m.position.stateBlock.byteOffset - dev;
+                System.Runtime.InteropServices.Marshal.WriteInt32(state, (int)pos, BitConverter.SingleToInt32Bits(float.Parse(a[1])));
+                System.Runtime.InteropServices.Marshal.WriteInt32(state, (int)pos + 4, BitConverter.SingleToInt32Bits(float.Parse(a[2])));
+                if (a.Length > 4)
+                {
+                    var btn = a[3] == "right" ? m.rightButton : m.leftButton;
+                    var sb = btn.stateBlock;
+                    int off = (int)(sb.byteOffset - dev + sb.bitOffset / 8), bit = (int)(sb.bitOffset % 8);
+                    byte b = System.Runtime.InteropServices.Marshal.ReadByte(state, off);
+                    b = (byte)(a[4] == "down" ? b | (1 << bit) : b & ~(1 << bit));
+                    System.Runtime.InteropServices.Marshal.WriteByte(state, off, b);
+                }
+                UnityEngine.InputSystem.InputSystem.QueueEvent(ev);
+                buf.Dispose();
+                Plugin.L.LogInfo($"mouse event queued: {string.Join(' ', a.Skip(1))}");
                 break;
             }
             case "bytes":
@@ -668,6 +725,28 @@ public class DiagBehaviour : MonoBehaviour
     internal static string PathOf(Transform t) => Path2(t);
 
     /// <summary>An active instance if there is one (scenes keep inactive copies of HUD panels), else any.</summary>
+    /// <summary>Nearest active fish more than 1 m from <paramref name="from"/>; side = only fish in the areas outside 16:9.</summary>
+    static DR.AI.FishAISystem NearestFish(Vector3 from, bool side, out float bestD)
+    {
+        var cam = Camera.main;
+        DR.AI.FishAISystem best = null;
+        bestD = float.MaxValue;
+        foreach (var f in UnityEngine.Object.FindObjectsOfType<DR.AI.FishAISystem>())
+        {
+            float d = Vector2.Distance(f.transform.position, from);
+            if (side && cam != null)
+            {
+                float vx = cam.WorldToViewportPoint(f.transform.position).x;
+                float half = 0.5f * (16f / 9f) / cam.aspect;
+                if (vx > 0.5f - half && vx < 0.5f + half || vx < 0f || vx > 1f) continue;
+            }
+            if (d > 1f && d < bestD) { bestD = d; best = f; }
+        }
+        if (best == null) Plugin.L.LogInfo("no fish");
+        else if (cam != null) Plugin.L.LogInfo($"target viewport x {cam.WorldToViewportPoint(best.transform.position).x:F2}");
+        return best;
+    }
+
     static GunWeaponHandler PlayerGun()
     {
         foreach (var g in UnityEngine.Object.FindObjectsOfType<GunWeaponHandler>(true))
