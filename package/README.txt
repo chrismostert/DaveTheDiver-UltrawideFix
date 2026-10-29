@@ -49,6 +49,8 @@ After the first launch you can edit
 with Notepad:
 
   Enabled          Turn the whole fix on/off.
+  WidenSushiBar    Use the full width in the sushi bar too. Set to false to keep
+                   the game's original 16:9 view there (with the side art).
   WidenOverlays    Extend fades and popup backgrounds to the full width.
   ClipUIToCenter   Hide UI that the game keeps just outside the 16:9 area
                    (otherwise it can show up at the edges).

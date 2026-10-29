@@ -17,7 +17,7 @@ public static class SushiBarScenery
     static Renderer _ground;
     static float _nextCheck;
 
-    static bool Active => Plugin.Enabled.Value && UltrawideBehaviour.IsWide();
+    static bool Active => UltrawideBehaviour.Widened;
 
     public static void Update()
     {

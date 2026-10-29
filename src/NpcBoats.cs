@@ -37,7 +37,7 @@ public static class NpcBoats
     static int _recheck; // the hidden boat whose renderers are rechecked this frame (one per frame)
     internal static int Reenabled; // renderers/lights found turned back on while hidden
 
-    static bool Active => Plugin.Enabled.Value && UltrawideBehaviour.IsWide();
+    static bool Active => UltrawideBehaviour.Widened;
 
     public static void Init(Harmony harmony) => harmony.PatchAll(typeof(Hooks));
 

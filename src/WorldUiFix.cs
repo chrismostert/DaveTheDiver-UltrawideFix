@@ -247,7 +247,7 @@ public static class WorldUiFix
         try
         {
             if (instance == null || !Plugin.Enabled.Value || !Plugin.FixWorldUi.Value || !Plugin.ClipUI.Value) return;
-            if (!UltrawideBehaviour.IsWide()) return;
+            if (!UltrawideBehaviour.Widened) return;
             var comp = instance.TryCast<Component>();
             if (comp == null) return;
             float now = Time.unscaledTime;

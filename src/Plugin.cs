@@ -17,6 +17,7 @@ public class Plugin : BasePlugin
 
     internal static ManualLogSource L;
     internal static ConfigEntry<bool> Enabled;
+    internal static ConfigEntry<bool> WidenSushiBar;
     internal static ConfigEntry<bool> WidenOverlays;
     internal static ConfigEntry<bool> ClipUI;
     internal static ConfigEntry<bool> FixWorldUi;
@@ -29,6 +30,9 @@ public class Plugin : BasePlugin
         L = Log;
         Enabled = Config.Bind("General", "Enabled", true,
             "Render the game at the full width of ultrawide (wider than 16:9) resolutions instead of pillarboxing.");
+        WidenSushiBar = Config.Bind("General", "WidenSushiBar", true,
+            "Use the full width in the sushi bar too (the sea is visible on both sides of the restaurant). " +
+            "Set to false to keep the game's original 16:9 view with the side art there; everywhere else stays full width.");
         WidenOverlays = Config.Bind("General", "WidenOverlays", true,
             "Stretch full-screen fades and popup dimming backgrounds to the full screen width. HUD and menus stay in a centered 16:9 area.");
         ClipUI = Config.Bind("General", "ClipUIToCenter", true,
@@ -64,7 +68,8 @@ public class Plugin : BasePlugin
 /// <summary>
 /// The game's CameraResolution computes a 16:9 viewport rect (m_CameraViewRect) for any screen
 /// wider than 16:9, applies it to the main camera and its camera stack, and shows black
-/// side masks. This watcher replaces that pillarbox rect with the full screen.
+/// side masks. This watcher replaces that pillarbox rect with the full screen, and puts the
+/// game's pillarbox back in the sushi bar when WidenSushiBar is off.
 /// </summary>
 public class UltrawideBehaviour : MonoBehaviour
 {
@@ -75,11 +80,20 @@ public class UltrawideBehaviour : MonoBehaviour
     Il2CppReferenceArray<Camera> _cams = new(16);
     Rect _pillarRect;
     bool _havePillarRect;
+    static IntPtr _lastMainCam;
+    static bool _mainIsSushiBar;
+
+    /// <summary>
+    /// The view is widened right now: enabled, wider than 16:9, and not in a scene that stays 16:9
+    /// (the sushi bar when WidenSushiBar is off). The other parts of the fix follow this.
+    /// </summary>
+    internal static bool Widened { get; private set; }
 
     void LateUpdate()
     {
         try
         {
+            Widened = Plugin.Enabled.Value && IsWide() && (Plugin.WidenSushiBar.Value || !InSushiBar());
 #if DIAG
             long t = System.Diagnostics.Stopwatch.GetTimestamp();
             if (Plugin.Enabled.Value) Apply();
@@ -112,10 +126,28 @@ public class UltrawideBehaviour : MonoBehaviour
 
     internal static bool IsWide() => Screen.height > 0 && (float)Screen.width / Screen.height > TargetAspect + 0.01f;
 
+    /// <summary>The main camera is the sushi bar's (Camera_SushiBar/MainCamera). Keeps the last answer while there is none.</summary>
+    static bool InSushiBar()
+    {
+        var cam = Camera.main;
+        if (cam == null) return _mainIsSushiBar;
+        if (cam.Pointer != _lastMainCam)
+        {
+            _lastMainCam = cam.Pointer;
+            _mainIsSushiBar = cam.transform.root.name.Contains("SushiBar");
+        }
+        return _mainIsSushiBar;
+    }
+
     void Apply()
     {
         var cr = Singleton<CameraResolution>._instance;
         if (cr == null || !IsWide()) return;
+        if (!Widened)
+        {
+            RestorePillarbox(cr);
+            return;
+        }
 
         var view = cr.m_CameraViewRect;
         if (view != Full && view.width > 0f && view.width < 1f)
@@ -144,6 +176,29 @@ public class UltrawideBehaviour : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Undoes the widening for a scene that stays 16:9: the pillarbox rect goes back into
+    /// m_CameraViewRect, the scene's CameraResolutionSetting applies it to the main camera and its
+    /// camera stack (as on a scene load), and the game's side masks show again.
+    /// </summary>
+    void RestorePillarbox(CameraResolution cr)
+    {
+        if (!_havePillarRect) return; // never widened: the game's own pillarbox is still in place
+        ShowMask(cr.m_LeftLetterBoxModifier);
+        ShowMask(cr.m_RightLetterBoxModifier);
+        // The game's main camera is the base of the camera stack (in the sushi bar BackgroundCamera,
+        // while Camera.main is an overlay camera in its stack).
+        var main = cr.MainCamera;
+        if (main == null || (Approx(main.rect, _pillarRect) && Approx(cr.m_CameraViewRect, _pillarRect))) return;
+
+        cr.m_CameraViewRect = _pillarRect;
+        // Only on the switch (finding all objects of a type takes milliseconds).
+        foreach (var s in FindObjectsOfType<CameraResolutionSetting>())
+            if (s.m_MainCamera != null && s.m_MainCamera.Pointer == main.Pointer) s.Setting();
+        if (!Approx(main.rect, _pillarRect)) main.rect = _pillarRect;
+        Plugin.L.LogInfo($"Kept the original 16:9 view in {main.transform.root.name}");
+    }
+
     bool IsPillar(Rect r)
     {
         if (r.width >= 1f || r.width <= 0f || r.x <= 0f) return false;
@@ -160,5 +215,10 @@ public class UltrawideBehaviour : MonoBehaviour
     static void HideMask(LetterBoxModifier m)
     {
         if (m != null && m.gameObject.activeSelf) m.gameObject.SetActive(false);
+    }
+
+    static void ShowMask(LetterBoxModifier m)
+    {
+        if (m != null && !m.gameObject.activeSelf) m.gameObject.SetActive(true);
     }
 }

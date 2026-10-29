@@ -77,6 +77,7 @@ After the first launch, edit `BepInEx/config/dtd.ultrawide.cfg`:
 | Setting | Default | Description |
 |---|---|---|
 | `Enabled` | `true` | Turn the whole fix on/off. |
+| `WidenSushiBar` | `true` | Use the full width in the sushi bar too. Set to `false` to keep the game's original 16:9 view (with the side art) there; everything else stays full width. |
 | `WidenOverlays` | `true` | Extend fades and popup backgrounds to the full width. |
 | `ClipUIToCenter` | `true` | Hide UI the game keeps just outside the 16:9 area (e.g. slide-in tabs). |
 | `FixWorldUI` | `true` | Keep world-following UI (order bubbles, speech bubbles, damage numbers) on its target. |

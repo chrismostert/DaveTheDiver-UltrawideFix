@@ -81,7 +81,7 @@ public static class OverlayExtender
     static bool _wasActive;
     static bool _inHook;
 
-    static bool Active => Plugin.Enabled.Value && UltrawideBehaviour.IsWide();
+    static bool Active => UltrawideBehaviour.Widened;
     static bool Widen => Plugin.WidenOverlays.Value;
     static bool Clip => Plugin.ClipUI.Value;
 

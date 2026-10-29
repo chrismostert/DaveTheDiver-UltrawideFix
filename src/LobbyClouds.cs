@@ -36,7 +36,7 @@ public static class LobbyClouds
     static int _w, _h;
     static bool _active;
 
-    static bool Active => Plugin.Enabled.Value && UltrawideBehaviour.IsWide();
+    static bool Active => UltrawideBehaviour.Widened;
 
     public static void Update()
     {
