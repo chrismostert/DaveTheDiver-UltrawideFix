@@ -12,7 +12,7 @@ A [BepInEx](https://github.com/BepInEx/BepInEx) plugin that lets Dave the Diver 
 - Story characters' boats that wait just outside the 16:9 view on the boat scene stay hidden until they sail in.
 - At 16:9 or narrower the game behaves exactly as without the fix.
 
-Tested with the Steam version v1.0.6.2113 at 3440×1440 (21:9), and at 32:9 in a 3440×968 window.
+Tested with the Steam version v1.0.6.2118 at 3440×1440 (21:9), and at 32:9 in a 3440×968 window.
 
 ## Screenshots
 
