@@ -48,6 +48,8 @@ It turns on verbose logging and watches `<game>/BepInEx/cmd.txt`. Write a comman
 | `cust` | Sushi bar bubbles: where each should be on screen vs where it is (`dx` should be 0) |
 | `wtv` | Number of `WorldToViewportPoint` calls the hook has seen, and how many it remapped |
 | `goto <scene>` | Load a scene the way travel does (`DR_SushiBar`, `DR_Farm`, `DR_FishFarm`, `MermanVillage`, `Mini_BattleVIP`, `Mini_Momo`, `GlacialArea_Main_01`, `DR_Dredge`, `Boss_005_Gardon`, ...). No story checks; changes the save |
+| `gun list` / `gun <tid>` | List all gun specs (TID, type, name, damage) / equip one on Dave (dive only; e.g. `3011601` = grenade launcher) |
+| `fire` | Aim Dave's gun at the nearest fish, fire once and move the new bullets next to the fish so the real hit/explosion path runs |
 | `ui <dmg\|emoji\|talk\|guide\|sub> <vx> [vy]` | Show world UI (damage number, emoji, speech bubble, guide arrow, sub-helper effect) on a dummy target at viewport (vx, vy) of the full screen |
 | `wui` / `wuiclear` | Alignment report of world UI positioned by the hooked methods: offset of each element from its projected target. Correct = the same offset at every screen position (and at 16:9) |
 | `gfx <name>` | Clipping state (maskable, culled, RectMask2D) of every graphic under an object |

@@ -309,6 +309,63 @@ public class DiagBehaviour : MonoBehaviour
             case "wtv":
                 Plugin.L.LogInfo($"WorldToViewportPoint postfix calls: {WorldUiFix.DiagCalls}, remapped: {WorldUiFix.DiagRemapped}");
                 break;
+            case "gun":
+            {
+                // gun list : all gun specs (TID, type, name); gun <tid> : equip that gun on the player (dive only)
+                var rm = Singleton<ResourceManager>._instance;
+                var list = rm?._GunSpecDataList;
+                if (list == null) { Plugin.L.LogInfo("no gun specs"); break; }
+                if (a.Length < 2 || a[1] == "list")
+                {
+                    var sb = new StringBuilder();
+                    foreach (var s in list) sb.AppendLine($"  {s.TID} {s.GunRootType}/{s.GunType} {s.Name} dmg {s.Damage} splash {s.ExplosionSplashDamage}");
+                    Plugin.L.LogInfo("GUNS\n" + sb);
+                    break;
+                }
+                int tid = int.Parse(a[1]);
+                GunSpecData spec = null;
+                foreach (var s in list) if (s.TID == tid) spec = s;
+                var h = PlayerGun();
+                if (spec == null || h == null) { Plugin.L.LogInfo($"spec {spec != null} handler {h != null}"); break; }
+                h.EquipItem(spec, false);
+                h.ForceSetBulletCount(spec.AmmoCount);
+                Plugin.L.LogInfo($"equipped {spec.Name} on {Path2(h.transform)}");
+                break;
+            }
+            case "fire":
+            {
+                // fire : aim the player's gun at the nearest active fish and fire once
+                var h = PlayerGun();
+                if (h == null || h.aim == null) { Plugin.L.LogInfo("no gun"); break; }
+                var aims = h.aim.m_AimTransforms;
+                if (aims == null || aims.Count == 0) { Plugin.L.LogInfo("no aim transforms"); break; }
+                Vector3 from = aims[0].position;
+                DR.AI.FishAISystem best = null;
+                float bestD = float.MaxValue;
+                foreach (var f in UnityEngine.Object.FindObjectsOfType<DR.AI.FishAISystem>())
+                {
+                    float d = Vector2.Distance(f.transform.position, from);
+                    if (d > 1f && d < bestD) { bestD = d; best = f; }
+                }
+                if (best == null) { Plugin.L.LogInfo("no fish"); break; }
+                Vector3 dir = best.transform.position - from;
+                dir.z = 0;
+                foreach (var t in aims) t.right = dir.normalized;
+                h.ForceSetBulletCount(Math.Max(1, h.GunSpec?.AmmoCount ?? 1));
+                Plugin.L.LogInfo($"firing {h.GunSpec?.Name} at {best.name} ({bestD:F1} m)");
+                h.FireWeapon();
+                // fish move and grenades arc: put the new bullets just in front of the fish so the real
+                // collision path runs
+                int moved = 0;
+                foreach (var b in UnityEngine.Object.FindObjectsOfType<GunBullet>())
+                {
+                    if (Vector2.Distance(b.transform.position, from) > 2f) continue;
+                    b.transform.position = best.transform.position - dir.normalized * 0.3f;
+                    moved++;
+                }
+                Plugin.L.LogInfo($"moved {moved} bullets next to the fish");
+                break;
+            }
             case "bytes":
             {
                 // bytes <rva hex> ... : first 16 bytes of GameAssembly code at that RVA
@@ -611,6 +668,13 @@ public class DiagBehaviour : MonoBehaviour
     internal static string PathOf(Transform t) => Path2(t);
 
     /// <summary>An active instance if there is one (scenes keep inactive copies of HUD panels), else any.</summary>
+    static GunWeaponHandler PlayerGun()
+    {
+        foreach (var g in UnityEngine.Object.FindObjectsOfType<GunWeaponHandler>(true))
+            if (g.IsPlayersHandler) return g;
+        return null;
+    }
+
     static T FindActiveFirst<T>() where T : Component
     {
         T any = null;

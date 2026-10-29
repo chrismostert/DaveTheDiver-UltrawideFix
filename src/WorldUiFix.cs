@@ -44,8 +44,10 @@ public static class WorldUiFix
         ("TalkBoxInfo", "Show", true),
         ("TalkBoxInfo", "UpdateAnchor", true),
         ("TalkBoxPanel", "ShowMessage", true),
+        // Not ShowDamageText: LateUpdate re-anchors every active text before it renders, and hooking
+        // ShowDamageText(DamageTextInfo) (a struct with references, by value) crashed the game on
+        // grenade hits (issue #1).
         ("DamageTextPoolPanel", "LateUpdate", true),
-        ("DamageTextPoolPanel", "ShowDamageText", true),
         ("EmojiCollection", "UpdateEmojiPosition", true),
         ("IndicatorController", "LateUpdate", true),
         ("InputActionIndicatorPanel", "LateUpdate", true),
